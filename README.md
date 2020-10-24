@@ -1,7 +1,7 @@
 ## DESCRIPTION
 Implementation of the TCP protocol in C language, the client connect to the server and ask for a file, the server sends it to him
 
-##USAGE
+## USAGE
 To compile : 
 '''bash
 gcc -Wall -lm -o ServerProject ServerProject.c
