@@ -1,6 +1,6 @@
 ## DESCRIPTION
 
-Implementation of the TCP protocol in C, the client connect to the server and ask for a file, the server sends it to him
+Implementation of the TCP protocol in C, the client connects to the server and ask for a file, the server sends it to him
 
 ## USAGE
 
