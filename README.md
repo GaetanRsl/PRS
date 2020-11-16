@@ -6,13 +6,12 @@ Implementation of the TCP protocol in C, the client connects to the server and a
 
 To compile : 
 ```bash
-gcc -Wall -lm -o ServerProject ServerProject.c
-gcc -Wall -lm -o client_UDP client_UDP.c
+make
 ```
 
 To run :
 
 ```bash
-./ServerProject <connection port> <file transfert port>
-./client_UDP <server IP @> <connection port>
+./ServerProject <connection port>
+./client_UDP <server IP @> <connection port> <filename>
   ```
