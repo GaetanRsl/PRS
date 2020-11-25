@@ -9,12 +9,16 @@
 #include <sys/select.h>
 #include <sys/time.h>
 
+
+struct elem{
+    char seq[1024];
+};
 int main(int argc, char *argv[]) {
 
     
 
     int port_prive = 3456;
-
+    
     struct sockaddr_in client_UDPConnection, client_UDP;
 
     struct sockaddr_in address_UDP, address_UDPConnection;
@@ -42,7 +46,7 @@ int main(int argc, char *argv[]) {
     address_UDPConnection.sin_family = AF_INET;
     address_UDPConnection.sin_port=htons(atoi(argv[1]));
 
-
+    //char tableau_seq[9999][1024];
     char buffer_UDP[10];
     char buffer_ACK[10];
     char buffer_seq[6];
@@ -90,7 +94,7 @@ int main(int argc, char *argv[]) {
     */
     struct timeval t0, t1;
 
-
+    struct elem* tableau_seq=malloc(sizeof(struct elem )* 10000);
     while(1){
         printf("Waiting for message... \n");
         FD_SET(socketUDP_connection, &fd);
@@ -125,8 +129,8 @@ int main(int argc, char *argv[]) {
             }
             
 
-        }else if(FD_ISSET(socketUDP, &fd)!=0)
-        {
+        }else if(FD_ISSET(socketUDP, &fd)!=0){
+
             printf("ENTER FILE TRANSFERT\n");
             
             int recv = recvfrom(socketUDP, buffer_UDP, sizeof(buffer_UDP),0, (struct sockaddr *)&client_UDP, &b);
@@ -149,10 +153,13 @@ int main(int argc, char *argv[]) {
             int timer0;
             int timer1;
             double moyenne = 0;
-            struct timeval timeout = {0, 7000};
+            struct timeval timeout = {1, 0};
+            int window_size = 1;
+            
             while((fs_block_sz = fread(sdbuf, sizeof(char), 1024,fs)) > 0 ){
-                
-
+                //printf("avant\n");
+                memcpy(tableau_seq[numSequence].seq, sdbuf,1024);
+                //printf("apres\n");
                 sprintf(buffer_seq,"%d", numSequence);
                 memcpy(buffer_data_seq, buffer_seq, 6);
                 memcpy(buffer_data_seq + 6,sdbuf, 1024);
@@ -168,7 +175,7 @@ int main(int argc, char *argv[]) {
                         recvfrom(socketUDP, buffer_ACK, sizeof(buffer_ACK),0,(struct sockaddr *)&client_UDP, &b);
                         int seq = atoi(buffer_ACK);
                         if (seq == numSequence){
-                        send = 1;                        
+                            send = 1;                        
                         }
                     
                     }else{
@@ -180,7 +187,8 @@ int main(int argc, char *argv[]) {
                 numSequence +=1;
             }
             EXIT_SUCCESS;
-            printf("Moyenne de temps : %f\n", moyenne / numSequence);
+            printf("fin\n");
+            printf("taille sdbuff %d\n", sizeof(tableau_seq[56].seq));
             printf("taille du buffer total : %ld\n", sizeof(buffer_data_seq[10]));
             sendto(socketUDP, (const char*)&end, sizeof(end), 0, (struct sockaddr *)&client_UDP, b);
 
