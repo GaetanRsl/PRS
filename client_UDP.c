@@ -82,23 +82,65 @@ int main(int argc, char *argv[]) {
 
         sendto(clientSocket, (const char *)filename, sizeof(filename),0, (struct sockaddr *) &address2, tailleAddr2);
         recvfrom(clientSocket,buffer, sizeof(buffer), 0, (struct sockaddr *)&address2, &tailleAddr2);
-        printf("Message from Server : %s", buffer);
+        printf("Message from Server : %s\n", buffer);
         
         
         //printf("message received %s\n", bufferFile);
         //fwrite(bufferFile, sizeof(char), msgSize, f);
         
         int r = 1;
-        char ack_file[6];
-        while(r ==1){
+        char seqNum[6];
+        //char ack_file[3]="ACK";
+        char ack_final[9];
+        while(r){
+            bzero(ack_final, 9);
             bzero(bufferFile, 1035);
+
             msgSize = recvfrom(clientSocket, bufferFile, sizeof(bufferFile), 0, (struct sockaddr*)&address2, &tailleAddr2);
             printf("Message size : %d\n", msgSize);
             if(strcmp(bufferFile, "END")!=0){
-                bzero(ack_file, 6);
-                memcpy(ack_file, bufferFile,6);
-                printf("seq num : %s\n", ack_file);    
-                int y=sendto(clientSocket, ack_file, sizeof(ack_file),0, (struct sockaddr *) &address2, tailleAddr2);
+                bzero(seqNum, 6);
+                memcpy(seqNum, bufferFile,6);
+                printf("seq recu : %d\n", atoi(seqNum));
+                //printf("ack file : %s\n", ack_final);
+
+                if(0<=atoi(seqNum) && atoi(seqNum)<=9){
+                    char a[] = "00000";
+                    strcat(ack_final, msg_ACK);
+                    strcat(ack_final, a);
+                    strcat(ack_final,seqNum);
+                    //printf("here\n");
+                    //printf("de la merde %s\n", ack_final);
+
+                } else if(10<=atoi(seqNum) && atoi(seqNum)<=99){
+                    char a[] = "0000";
+                    printf("here\n");
+                    strcat(ack_final, msg_ACK);
+                    strcat(ack_final, a);
+                    strcat(ack_final,seqNum);
+                } else if(100<=atoi(seqNum) && atoi(seqNum)<=999){
+                    char a[] = "000";
+                    strcat(ack_final, msg_ACK);
+                    strcat(ack_final, a);
+                    strcat(ack_final,seqNum);
+                }else if(1000<=atoi(seqNum) || atoi(seqNum)<=9999){
+                    char a[]="00";
+                    strcat(ack_final, msg_ACK);
+                    strcat(ack_final, a);
+                    strcat(ack_final,seqNum);
+                }else if(10000<=atoi(seqNum) || atoi(seqNum)<=99999){
+                    char a[]="0";
+                    strcat(ack_final, msg_ACK);
+                    strcat(ack_final, a);
+                    strcat(ack_final,seqNum);
+                }else{
+                    strcat(ack_final, msg_ACK); 
+                    strcat(ack_final, seqNum);
+                }
+
+
+                printf("seq num : %s\n", ack_final);    
+                int y=sendto(clientSocket, ack_final, sizeof(ack_final),0, (struct sockaddr *) &address2, tailleAddr2);
                 
                 //printf("%d\n",y);
                 memcpy(buffer_final, bufferFile+6, 1024);
