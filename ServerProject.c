@@ -12,10 +12,11 @@
 
 struct elem{
     char seq[1024];
+    int acked;
 };
 int main(int argc, char *argv[]) {
 
-    
+    struct timeval timeout = {0.5, 0};
 
     int port_prive = 3456;
     
@@ -49,15 +50,15 @@ int main(int argc, char *argv[]) {
     //char tableau_seq[9999][1024];
     char buffer_UDP[10];
     char buffer_ACK[10];
-    char buffer_seq[6];
+    char buffer_seq[7];
     char buffer_data_seq[1035];
     char msg_SYNACK[]="SYN-ACK3456";
     char buffer_UDPConnection[10];
-    char buffer_total[1024];
+    //char buffer_total[1024];
     char fs_name[10];
     //char port[6];
     //strcpy(port, argv[2]);
-    char end[10]="END";
+    char FIN[4]="FIN";
 
     fd_set fd;
     FD_ZERO(&fd);
@@ -92,7 +93,6 @@ int main(int argc, char *argv[]) {
     char sdbuf[1024];
     FILE *fs = fopen(fs_name, "r");
     */
-    struct timeval t0, t1;
 
     struct elem* tableau_seq=malloc(sizeof(struct elem )* 10000);
     while(1){
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
                 //Send private port number
                 //sendto(socketUDP_connection, port, sizeof(port),0, (struct sockaddr *)&client_UDPConnection, v);           
             }else{
-                EXIT_FAILURE;
+                //EXIT_FAILURE;
             }
             
 
@@ -149,66 +149,98 @@ int main(int argc, char *argv[]) {
             }
             int fs_block_sz = 0;
             bzero(sdbuf, 1024);
-            int numSequence = 0;
-            int timer0;
-            int timer1;
-            double moyenne = 0;
-            struct timeval timeout = {1, 0};
+            int nbPaquet = 1;
+
+            
             //int window_size = 1;
             //int dernier_paquet = 119; 
             //while(window_size < dernier_paquet){
+            
                 
-                while((fs_block_sz = fread(sdbuf, sizeof(char), 1024,fs)) > 0 ){
-                    //printf("avant\n");
-                    memcpy(tableau_seq[numSequence].seq, sdbuf,1024);
-                    //printf("apres\n");
-                    sprintf(buffer_seq,"%d", numSequence);
+            while((fs_block_sz = fread(sdbuf, sizeof(char), 1024,fs)) > 0 ){
+                //printf("avant\n");
+                memcpy(tableau_seq[nbPaquet].seq, sdbuf,1024);
+                tableau_seq[nbPaquet].acked = 0;
+                //printf("apres\n");
+                nbPaquet+=1;
+            }
+            printf("NOMBRE PAQUET : %d\n", nbPaquet);
+       
+            int last_sent = 0;
+            int last_ack=0;
+            int start_window=1;
+            int end_window = 5;
+            while(last_ack < nbPaquet){
+                for(int i = start_window; i<=end_window; i++){
+                    //Reinitialisation des buffers
+                    bzero(buffer_seq, 6);
+                    bzero(buffer_data_seq, 1030);
+
+                    //Ajout data + seq dans buffer
+                    sprintf(buffer_seq,"%6d", i);
                     memcpy(buffer_data_seq, buffer_seq, 6);
-                    memcpy(buffer_data_seq + 6,sdbuf, 1024);
-
-
-
-                    int send = 0;
-                    while(send ==0){
-                        sendto(socketUDP, buffer_data_seq, 1035, 0, (struct sockaddr *)&client_UDP, b);
-                        FD_SET(socketUDP, &fd);
-                        select(socketUDP+1, &fd, NULL, NULL, &timeout);
+                    memcpy(buffer_data_seq + 6,tableau_seq[i].seq, 1024);
                     
-                        if(FD_ISSET(socketUDP, &fd)!=0){
-                            recvfrom(socketUDP, buffer_ACK, sizeof(buffer_ACK),0,(struct sockaddr *)&client_UDP, &b);
-                            printf("ACK RECEIVED : %s \n", buffer_ACK);
-                            char a[6];
-                            memcpy(a, buffer_ACK+3, 6);
-                            printf(" compare %d\n", atoi(a));
-                            
-                            int seq = atoi(a);
-                            printf(" seq %d\n", numSequence);
-                            if (seq == numSequence){
-                                send = 1;                        
-                            }
-                    
-                        }else{
-                            //TIMEOUT SELECT 1 SECOND -> TO CHANGE
-                            struct timeval timeout = {1, 0};
-                        }
+                    if(i>last_sent){
+                        sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
+                        printf("Paquet envoye : %d\n", i);
+                        last_sent = i;
                     }
-
-                    numSequence +=1;
+                                       
                 }
 
-            //}
+                FD_SET(socketUDP, &fd);
+                select(socketUDP+1, &fd, NULL, NULL, &timeout);
+                    
+                if(FD_ISSET(socketUDP, &fd)!=0){
+                    
+                    recvfrom(socketUDP, buffer_ACK, sizeof(buffer_ACK),0,(struct sockaddr *)&client_UDP, &b);
+                    printf("ACK RECEIVED : %s \n", buffer_ACK);
+                    
+                    char a[6];
+                    memcpy(a, buffer_ACK+3, 6);                   
+                            
+                    int seq = atoi(a);
+                    tableau_seq[seq].acked +=1;
+                    if(tableau_seq[seq].acked > 1){
+                        printf("Sequence %d mal recu !!\n", seq+1);
 
-            EXIT_SUCCESS;
+                        sprintf(buffer_seq,"%6d", seq + 1);
+                        memcpy(buffer_data_seq, buffer_seq, 6);
+                        memcpy(buffer_data_seq + 6,tableau_seq[seq+1].seq, 1024);
+
+                        sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
+                    }
+                    //printf(" sequence Actuel %d\n", seq);
+                    if (seq > last_ack){
+                        last_ack = seq;
+                        start_window = seq +1;
+                        if ((seq + 5)< nbPaquet){
+                            end_window = seq + 5;
+                        }else{
+                            end_window=nbPaquet;
+                        }
+                                             
+                    
+                }else{
+                    timeout.tv_sec = 0.1;
+                    timeout.tv_usec=0;                      
+                    }
+                }
+            }
+
+            //EXIT_SUCCESS;
             printf("fin\n");
-            printf("taille sdbuff %d\n", sizeof(tableau_seq[56].seq));
+            //printf("taille sdbuff %d\n", sizeof(tableau_seq[56].seq));
             printf("taille du buffer total : %ld\n", sizeof(buffer_data_seq[10]));
-            sendto(socketUDP, (const char*)&end, sizeof(end), 0, (struct sockaddr *)&client_UDP, b);
+            int s =sendto(socketUDP, (const char*)&FIN, sizeof(FIN), 0, (struct sockaddr *)&client_UDP, b);
+            printf("fin final %d\n", s);
 
             printf("File send correctly \n");           
-            
+            free(tableau_seq);
+            close(socketUDP);
         }        
     }
-   
-return (0);
+    close(socketUDP_connection);   
+    return (0);
 }
-
