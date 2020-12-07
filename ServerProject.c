@@ -16,7 +16,7 @@ struct elem{
 };
 int main(int argc, char *argv[]) {
 
-    struct timeval timeout = {0.5, 0};
+    struct timeval timeout = {1, 0};
 
     int port_prive = 3456;
     
@@ -47,17 +47,17 @@ int main(int argc, char *argv[]) {
     address_UDPConnection.sin_family = AF_INET;
     address_UDPConnection.sin_port=htons(atoi(argv[1]));
 
-    //char tableau_seq[9999][1024];
+    /*
+    * Declaration des buffers
+    * */
+
     char buffer_UDP[10];
     char buffer_ACK[10];
     char buffer_seq[7];
     char buffer_data_seq[1035];
     char msg_SYNACK[]="SYN-ACK3456";
     char buffer_UDPConnection[10];
-    //char buffer_total[1024];
     char fs_name[10];
-    //char port[6];
-    //strcpy(port, argv[2]);
     char FIN[4]="FIN";
 
     fd_set fd;
@@ -88,12 +88,8 @@ int main(int argc, char *argv[]) {
     socklen_t b = sizeof(init_udp);
 
     /*
-    Declaration des ;variables pour les fichiers
-    char fs_name[10] = "theo.jpg";
-    char sdbuf[1024];
-    FILE *fs = fopen(fs_name, "r");
-    */
-
+    * Boucle pricipal qui gere les 2 sockets et qui maintient le serveur en ecoute
+    * */
     struct elem* tableau_seq=malloc(sizeof(struct elem )* 10000);
     while(1){
         printf("Waiting for message... \n");
@@ -106,6 +102,9 @@ int main(int argc, char *argv[]) {
             printf("Error Select \n");
             return -1;
         }
+        /*
+        * 3 Way Handshake 
+        * */
         if(FD_ISSET(socketUDP_connection, &fd) != 0){
             printf("Beginning of the connection\n");
             //SYN RCV
@@ -113,22 +112,17 @@ int main(int argc, char *argv[]) {
             printf("First message from UDP Client : %s\n", buffer_UDPConnection);
 
             if(strncmp(buffer_UDPConnection, "SYN",3) ==0){
-                //SYN-ACK SEND
+            //SYN-ACK SEND
                 sendto(socketUDP_connection, (const char*)&msg_SYNACK, sizeof(msg_SYNACK),0, (struct sockaddr *)&client_UDPConnection, v);           
             }
             //ACK RCV
             recvfrom(socketUDP_connection, &buffer_UDPConnection, sizeof(buffer_UDPConnection),0, (struct sockaddr *)&client_UDPConnection, &v);
             printf("Second message from client : %s \n", buffer_UDPConnection);
             if(strncmp(buffer_UDPConnection, "ACK",3) ==0){
-            //sendto(socketUDP, (const char*)&msg_SYNACK, sizeof(msg_SYNACK),0, (struct sockaddr *)&client_UDP, v);     
-                printf("Succesful 3 way handshake\n");
-                //Send private port number
-                //sendto(socketUDP_connection, port, sizeof(port),0, (struct sockaddr *)&client_UDPConnection, v);           
-            }else{
-                //EXIT_FAILURE;
-            }
-            
 
+                printf("Succesful 3 way handshake\n");
+        
+            }
         }else if(FD_ISSET(socketUDP, &fd)!=0){
 
             printf("ENTER FILE TRANSFERT\n");
@@ -142,7 +136,7 @@ int main(int argc, char *argv[]) {
             printf("port : %d\n", ntohs(client_UDP.sin_port));
             printf("Message client UDP : %s\n", buffer_UDP);
             sendto(socketUDP, buffer_UDP, recv,0, (struct sockaddr *)&client_UDP, b);
-            //printf("apres send to\n");
+            
             if (fs == NULL){
                 printf("Error, file %s not found \n", fs_name);
                 exit(1);
@@ -151,12 +145,9 @@ int main(int argc, char *argv[]) {
             bzero(sdbuf, 1024);
             int nbPaquet = 1;
 
-            
-            //int window_size = 1;
-            //int dernier_paquet = 119; 
-            //while(window_size < dernier_paquet){
-            
-                
+            /*
+            * Boucle qui lit le fichier en entier 
+            **/
             while((fs_block_sz = fread(sdbuf, sizeof(char), 1024,fs)) > 0 ){
                 //printf("avant\n");
                 memcpy(tableau_seq[nbPaquet].seq, sdbuf,1024);
@@ -167,10 +158,17 @@ int main(int argc, char *argv[]) {
             printf("NOMBRE PAQUET : %d\n", nbPaquet);
        
             int last_sent = 0;
+            int seq = 0;
             int last_ack=0;
             int start_window=1;
             int end_window = 5;
+
+            /*
+            * Boucle d'envoie tant tous les paquets ne sont pas ACK
+            * */
+
             while(last_ack < nbPaquet){
+
                 for(int i = start_window; i<=end_window; i++){
                     //Reinitialisation des buffers
                     bzero(buffer_seq, 6);
@@ -185,8 +183,7 @@ int main(int argc, char *argv[]) {
                         sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
                         printf("Paquet envoye : %d\n", i);
                         last_sent = i;
-                    }
-                                       
+                    }                                       
                 }
 
                 FD_SET(socketUDP, &fd);
@@ -200,7 +197,7 @@ int main(int argc, char *argv[]) {
                     char a[6];
                     memcpy(a, buffer_ACK+3, 6);                   
                             
-                    int seq = atoi(a);
+                    seq = atoi(a);
                     tableau_seq[seq].acked +=1;
                     if(tableau_seq[seq].acked > 1){
                         printf("Sequence %d mal recu !!\n", seq+1);
@@ -210,8 +207,9 @@ int main(int argc, char *argv[]) {
                         memcpy(buffer_data_seq + 6,tableau_seq[seq+1].seq, 1024);
 
                         sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
+                        tableau_seq[seq].acked = 1;
                     }
-                    //printf(" sequence Actuel %d\n", seq);
+
                     if (seq > last_ack){
                         last_ack = seq;
                         start_window = seq +1;
@@ -220,21 +218,31 @@ int main(int argc, char *argv[]) {
                         }else{
                             end_window=nbPaquet;
                         }
-                                             
-                    
+                    }                                       
                 }else{
-                    timeout.tv_sec = 0.1;
-                    timeout.tv_usec=0;                      
-                    }
+
+                    /*
+                    * When the ACK is not received, we send again last ACK + 1 packet
+                    **/    
+
+                    sprintf(buffer_seq,"%6d", last_ack + 1);
+                    memcpy(buffer_data_seq, buffer_seq, 6);
+                    memcpy(buffer_data_seq + 6,tableau_seq[last_ack+1].seq, 1024);
+                    sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
+                    printf("Paquet %d envoye car ACK non recu\n", last_ack+1);
+            
+
+                    timeout.tv_sec = 1;
+                    timeout.tv_usec=0;           
                 }
             }
 
-            //EXIT_SUCCESS;
-            printf("fin\n");
-            //printf("taille sdbuff %d\n", sizeof(tableau_seq[56].seq));
-            printf("taille du buffer total : %ld\n", sizeof(buffer_data_seq[10]));
-            int s =sendto(socketUDP, (const char*)&FIN, sizeof(FIN), 0, (struct sockaddr *)&client_UDP, b);
-            printf("fin final %d\n", s);
+            /*
+            *Sending end of file message and close connection
+            * */
+
+            sendto(socketUDP, (const char*)&FIN, sizeof(FIN), 0, (struct sockaddr *)&client_UDP, b);
+            printf("FIN \n");
 
             printf("File send correctly \n");           
             free(tableau_seq);
