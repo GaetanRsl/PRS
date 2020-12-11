@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     char buffer_ACK[10];
     char buffer_seq[7];
     char buffer_data_seq[1035];
-    char msg_SYNACK[]="SYN-ACK";
+    char msg_SYNACK[13]="SYN-ACK";
     char buffer_UDPConnection[10];
     char fs_name[15];
     char FIN[4]="FIN";
@@ -121,7 +121,8 @@ int main(int argc, char *argv[]) {
             int valid = 1;
             setsockopt(socketUDP, SOL_SOCKET, SO_REUSEADDR, &valid, sizeof(int));
             int port_prive = (rand()%8999)+1000;
-            sprintf(msg_SYNACK, '%d', port_prive);
+            sprintf(msg_SYNACK + 7, "%d", port_prive);
+            printf("port prive : %s\n", msg_SYNACK);
             address_UDP.sin_addr.s_addr = htonl(INADDR_ANY);
             address_UDP.sin_family = AF_INET;
             address_UDP.sin_port=htons(port_prive);
@@ -196,7 +197,7 @@ int main(int argc, char *argv[]) {
                 int seq = 0;
                 int last_ack=0;
                 int start_window=1;
-                int end_window = 5;
+                int end_window = 20;
 
                 /*
                 * Boucle d'envoie tant que tous les paquets ne sont pas ACK
@@ -238,8 +239,8 @@ int main(int argc, char *argv[]) {
                         if (seq > last_ack){
                             last_ack = seq;
                             start_window = seq +1;
-                            if ((seq + 5)< nbPaquet){
-                                end_window = seq + 5;
+                            if ((seq + 20)< nbPaquet){
+                                end_window = seq + 20;
                             }else{
                                 end_window=nbPaquet;
                             }
