@@ -154,7 +154,10 @@ int main(int argc, char *argv[]) {
 
             } else if(pid == 0){
                 close(socketUDP_connection);
-                printf("ENTER FILE TRANSFERT\n");          
+                printf("ENTER FILE TRANSFERT\n");    
+
+                //On recoit le nom du fichier a envoye   
+
                 int recv = recvfrom(socketUDP, buffer_UDP, sizeof(buffer_UDP),0, (struct sockaddr *)&client_UDP, &b);
                 int file_sz = sizeof(buffer_UDP);
                 memcpy(fs_name, buffer_UDP, file_sz);
@@ -176,6 +179,7 @@ int main(int argc, char *argv[]) {
                 /*
                 * Boucle qui lit le fichier en entier 
                 **/
+
                 while((fs_block_sz = fread(sdbuf, sizeof(char), 1024,fs)) > 0 ){
                     //printf("avant\n");
                     memcpy(tableau_seq[nbPaquet].seq, sdbuf,1024);
@@ -214,10 +218,10 @@ int main(int argc, char *argv[]) {
                         }                                       
                     }
 
-                    FD_SET(socketUDP, &fd);
-                    select(socketUDP+1, &fd, NULL, NULL, &timeout);
+                    FD_SET(socketUDP, &fd_conn);
+                    select(socketUDP+1, &fd_conn, NULL, NULL, &timeout);
                         
-                    if(FD_ISSET(socketUDP, &fd)!=0){
+                    if(FD_ISSET(socketUDP, &fd_conn)!=0){
                         
                         recvfrom(socketUDP, buffer_ACK, sizeof(buffer_ACK),0,(struct sockaddr *)&client_UDP, &b);
                         printf("ACK RECEIVED : %s \n", buffer_ACK);
@@ -227,16 +231,6 @@ int main(int argc, char *argv[]) {
                                 
                         seq = atoi(a);
                         tableau_seq[seq].acked +=1;
-                        if(tableau_seq[seq].acked > 1){
-                            printf("Sequence %d mal recu !!\n", seq+1);
-
-                            sprintf(buffer_seq,"%6d", seq + 1);
-                            memcpy(buffer_data_seq, buffer_seq, 6);
-                            memcpy(buffer_data_seq + 6,tableau_seq[seq+1].seq, 1024);
-
-                            sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
-                            tableau_seq[seq].acked = 1;
-                        }
 
                         if (seq > last_ack){
                             last_ack = seq;
@@ -246,7 +240,19 @@ int main(int argc, char *argv[]) {
                             }else{
                                 end_window=nbPaquet;
                             }
-                        }                                       
+                        }else{
+                            if(tableau_seq[seq].acked > 1){
+                            printf("Sequence %d mal recu !!\n", seq+1);
+
+                            sprintf(buffer_seq,"%6d", seq + 1);
+                            memcpy(buffer_data_seq, buffer_seq, 6);
+                            memcpy(buffer_data_seq + 6,tableau_seq[seq+1].seq, 1024);
+
+                            sendto(socketUDP, buffer_data_seq, 1030, 0, (struct sockaddr *)&client_UDP, b);
+                            tableau_seq[seq].acked = 1;
+                            }
+                        }         
+                                       
                     }else{
 
                         /*
