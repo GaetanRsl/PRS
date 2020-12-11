@@ -49,13 +49,13 @@ int main(int argc, char *argv[]) {
     * Declaration des buffers
     * */
 
-    char buffer_UDP[10];
+    char buffer_UDP[15];
     char buffer_ACK[10];
     char buffer_seq[7];
     char buffer_data_seq[1035];
-    char msg_SYNACK[]="SYN-ACK3456";
+    char msg_SYNACK[]="SYN-ACK";
     char buffer_UDPConnection[10];
-    char fs_name[10];
+    char fs_name[15];
     char FIN[4]="FIN";
 
     fd_set fd;
@@ -107,8 +107,8 @@ int main(int argc, char *argv[]) {
             * Creation socket transfert fichier
             * */
             
-            int port_prive = 3456;
-            char private_port[]="3456";
+            //int port_prive = 3456;
+            //char private_port[]="3456";
             struct sockaddr_in address_UDP;
             struct sockaddr_in client_UDP;
             memset((char*)&address_UDP, 0, sizeof(address_UDP));
@@ -120,6 +120,8 @@ int main(int argc, char *argv[]) {
             }
             int valid = 1;
             setsockopt(socketUDP, SOL_SOCKET, SO_REUSEADDR, &valid, sizeof(int));
+            int port_prive = (rand()%8999)+1000;
+            sprintf(msg_SYNACK, '%d', port_prive);
             address_UDP.sin_addr.s_addr = htonl(INADDR_ANY);
             address_UDP.sin_family = AF_INET;
             address_UDP.sin_port=htons(port_prive);
@@ -135,6 +137,7 @@ int main(int argc, char *argv[]) {
             if(strncmp(buffer_UDPConnection, "SYN",3) ==0){
                 //SYN-ACK SEND
                 //strcat(msg_SYNACK, private_port);
+                
                 sendto(socketUDP_connection, (const char*)&msg_SYNACK, sizeof(msg_SYNACK),0, (struct sockaddr *)&client_UDPConnection, v);           
             }else{
                 exit(EXIT_FAILURE);
