@@ -11,6 +11,7 @@
 
 #define TIMEOUT_S 0
 #define TIMEOUT_US 60000
+#define CWND 6
 
 struct elem{
     char seq[1494];
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
                 int seq = 0;
                 int last_ack=0;
                 int start_window=1;
-                int end_window = 40;
+                int end_window = CWND;
 
                 /*
                 * Boucle d'envoie tant que tous les paquets ne sont pas ACK
@@ -241,8 +242,8 @@ int main(int argc, char *argv[]) {
                         if (seq > last_ack){
                             last_ack = seq;
                             start_window = seq +1;
-                            if ((seq + 40)< nbPaquet){
-                                end_window = seq + 40;
+                            if ((seq + CWND)< nbPaquet){
+                                end_window = seq + CWND;
                             }else{
                                 end_window=nbPaquet;
                             }

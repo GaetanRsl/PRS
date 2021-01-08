@@ -1,11 +1,11 @@
 all : main
 
-main : Server1.o ServerProject.o MultiClients.o Server2.o ServerTuana.o
+main : Server1.o ServerProject.o MultiClients.o Server2.o 
 	gcc -Wall ServerProject.o -o ServerProject
 	gcc -Wall Server1.o -o Server1
 	gcc -Wall MultiClients.o -o MultiClients
 	gcc -Wall Server2.o -o Server2
-	gcc -Wall ServerTuana.o -o ServerTuana
+
 
 ServerProject.o : ServerProject.c
 	gcc -Wall -c ServerProject.c -o ServerProject.o
@@ -19,7 +19,5 @@ MultiClients.o : MultiClients.c
 Server2.o : Server2.c
 	gcc -Wall -c Server2.c -o Server2.o
 
-ServerTuana.o : ServerTuana.c
-	gcc -Wall -c ServerTuana.c -o ServerTuana.o
 clean:
 	rm -f *.o
